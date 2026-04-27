@@ -1,14 +1,19 @@
 import User from "../models/user.js"
+import Country from "../models/country.js"
+import Province from "../models/province.js"
+import City from "../models/city.js"
 import { hashPassword, comparePasswords } from "../utils/auth.js"
 import jwt from "jsonwebtoken"
 import { expressjwt } from "express-jwt"
+import locationSchema from "../models/schemas/location.js"
+import mongoose from "mongoose"
 
 export const register = async (req, res) => {
     try {
         const {name, email, password} = req.body;
-        
+
         for(const [field, value] of Object.entries({name, email, password})) {
-            if(!value.trim()) return res.status(400).json(`${field} is required`);
+            if(typeof field !== "string" || !value.trim()) return res.status(400).json(`${field} is required`);
         }
 
         if(password.length < 6) return res.status(400).json(`password must be more than 6 character`);
@@ -17,12 +22,13 @@ export const register = async (req, res) => {
         if(userExists) return res.status(400).json(`email already exists`);
 
         let hashedPassword = await hashPassword(password);
+
         const user = await new User({name, email, password: hashedPassword}).save();
         return res.json({ok: true});
 
     } catch (err) {
         console.log(err);
-        return res.status(400).send({ok: true, message: 'an error occured'});
+        return res.status(500).send({ok: false, message: 'an error occured'});
     }
     
 }
@@ -93,8 +99,7 @@ export const requireSigning = expressjwt({
 export const currentUser = async (req, res) => {
     try {
         const user = await User.findById(req.auth?._id).select('-password').exec();
-        console.log(user);
-        return res.json(user);
+        return res.json({ok: true, user});
     } catch(err) {
         console.log(err);
         res.status(500).json({ok: false, message: "DB error"});
@@ -161,4 +166,69 @@ export const setNewPassword = async (req, res) => {
         console.log(err.message)
         return res.status(500).json({ok: false, message: 'something failed! please try again'});
     }
+}
+
+export const editProfile = async (req, res) => {
+    try {
+        const {_id, name, email, password, confirmPassword, phone, userCountry, userProvince, userCity }= req.body
+        
+        if(!mongoose.isValidObjectId(_id) || (userCountry && !mongoose.isValidObjectId(userCountry)) || (userProvince && !mongoose.isValidObjectId(userProvince)) || (userCity && !mongoose.isValidObjectId(userCity))) {
+            return res.status(400).json({ok: false, message: "invalid data"});
+        }
+
+        const user = await User.findOne({_id}).exec();
+
+        if(!user) {
+            return res.status(400).json({ok: false, message: "user not found"});
+        }
+
+        let hashedPassword = '';
+
+        if(password && confirmPassword) {
+            
+            if(password !== confirmPassword) {
+                return res.status(400).json({ok: false, message: "passwords not match"});
+            }
+
+            hashedPassword = await hashPassword(password);
+        } else if((password && !confirmPassword) || (!password && confirmPassword)) {
+            return res.status(400).json({ok: false, message: "passwords and it's confirmation should be present both"});
+        }
+
+        //user country and province and city are tied together, all of them or none of them should exists
+        if((userCountry || userProvince || userCity) && (!userCountry || !userProvince || !userCity)) {
+            return res.status(400).json({ok: false, message: "country and province and city all should exists or leave all empty"});
+        }
+
+        if(userCountry && userProvince && userCity) {
+            
+            if(!user.requesterProfile) {
+                user.requesterProfile = {};
+            }
+
+            const city = await City.findOne({_id: userCity, province: userProvince}).exec();
+            if(!city) return res.status(400).json({ok: false, message: "city not found"});
+
+            const province = await Province.findOne({_id: userProvince, country: userCountry}).exec();
+            if(!province) return res.status(400).json({ok: false, message: "province not found"});
+
+            const country = await Country.findOne({_id: userCountry}).exec();
+            if(!country) return res.status(400).json({ok: false, message: "country not found"});
+
+            user.requesterProfile.location = {country: userCountry, province: userProvince, city: userCity}
+        }
+
+        for(const [key, value] of Object.entries({name, email, phoneNumber: phone, password: hashedPassword})) {
+            if(value) {
+                user[key] = value;
+            }
+        }
+        
+        await user.save();
+
+        return res.status(200).json({ok: true, message: "your datas successfully updated", user});
+    } catch(err) {
+        console.log(err.message);
+        return res.status(500).json({ok: false, message: "something went wrong! please try again later"});
+    }    
 }

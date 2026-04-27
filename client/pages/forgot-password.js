@@ -1,15 +1,11 @@
-import { useState, useContext } from "react"
-import { Context } from "@/context/index.js"
+import { useState } from "react"
 import { SyncOutlined } from "@ant-design/icons"
 import { toast } from "react-toastify"
-import styles from "./forgotPassword.module.css"
-import { apiFetch } from "@/context/api"
-import GuestOnly from '@/components/wrappers/GuestOnly.js'
+import { apiFetch } from "@/lib/api"
+import GuestOnly from '@/components/wrappers/users/GuestOnly.js'
 
 const forgotPassword = () => {
 
-    //prepare global context
-    const { onUnAuthorized } = useContext(Context);
 
     //prepare form states
     const [email, setEmail] = useState("");
@@ -39,7 +35,7 @@ const forgotPassword = () => {
         try {
 
             //send email 
-            let res = await apiFetch(`/api/send-email`, onUnAuthorized, fetchConfig);
+            let res = await apiFetch(`/api/send-email`, fetchConfig);
             
             //send error if request failed
             if(!res.ok) {
@@ -92,26 +88,19 @@ const forgotPassword = () => {
         try {
 
             //send code
-            const res = await apiFetch('/api/confirm-code', onUnAuthorized, fetchConfig);
+            const res = await apiFetch('/api/confirm-code', fetchConfig);
+            const {ok, message} = await res.json();
 
-            //error on network error
-            if(!res?.ok) {
-                throw new Error('failed to confirm your code! check your conectivity');
-            }
-
-            const data = await res.json();
-
-            //handle request success
-            if(data.ok === true) {
-                
+            //handle response
+            if(!res?.ok || !ok) {
+                toast.error(err.message);
+            } else {
                 setCodeSent(true);
                 toast.success('confirmation succeed! now enter your new password');
-            } else {
-                //send backend error message
-                throw new Error(data.message);    
             }
+
         } catch(err) {
-            toast.error(err.message);
+            toast.error("something went wrong! please try again");
         }
         
         setCode("");
@@ -138,7 +127,7 @@ const forgotPassword = () => {
         try {
             
             //send new password
-            const res = await apiFetch('/api/new-password', onUnAuthorized, fetchConfig);
+            const res = await apiFetch('/api/new-password', fetchConfig);
 
             //send network error message
             if(!res?.ok) {
@@ -181,25 +170,25 @@ const forgotPassword = () => {
                 <h1 className="register text-center pt-4">reset your password</h1>
                 <form style={{display: "flex", flexDirection: "column", rowGap: "20px"}} onSubmit={(!emailSent) ? sendEmail : (emailSent && !codeSent) ? sendCode : (emailSent && codeSent) && sendNewPassword}>
 
-                    {!emailSent && <label className={styles.label} htmlFor="email">
-                        <span className={styles.span}>please enter your email</span>
-                        <input value={email} onChange={e => setEmail(e.target.value)} className={styles.input} type="email" name="email" id="email" placeholder="enter your email" />
+                    {!emailSent && <label className="d-flex flex-column" htmlFor="email">
+                        <span className="mb-2">please enter your email</span>
+                        <input value={email} onChange={e => setEmail(e.target.value)} type="email" name="email" id="email" placeholder="enter your email" />
                     </label>}
 
-                    {emailSent && !codeSent && <label className={styles.label} htmlFor="code">
-                        <span className={styles.span}>please enter sent code</span>
-                        <input value={code} onChange={e => setCode(e.target.value)} className={styles.input} type="text" name="code" id="code" placeholder="enter sent code" />
+                    {emailSent && !codeSent && <label className="d-flex flex-column" htmlFor="code">
+                        <span className="mb-2">please enter sent code</span>
+                        <input value={code} onChange={e => setCode(e.target.value)} type="text" name="code" id="code" placeholder="enter sent code" />
                     </label>}
 
                     {emailSent && codeSent && (
                         <>
-                            <label className={styles.label} htmlFor="password">
-                                <span className={styles.span}>please enter your new password</span>
-                                <input value={password} onChange={e => setPassword(e.target.value)} className={styles.input} type="password" name="password" id="password" placeholder="enter new password" />
+                            <label className="d-flex flex-column" htmlFor="password">
+                                <span className="mb-2">please enter your new password</span>
+                                <input value={password} onChange={e => setPassword(e.target.value)} type="password" name="password" id="password" placeholder="enter new password" />
                             </label>
-                            <label className={styles.label} htmlFor="confirmPassword">
-                                <span className={styles.span}>please enter sent code</span>
-                                <input value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className={styles.input} type="password" name="confirmPassword" id="confirmPassword" placeholder="reenter new password" />
+                            <label className="d-flex flex-column" htmlFor="confirmPassword">
+                                <span className="mb-2">please enter sent code</span>
+                                <input value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} type="password" name="confirmPassword" id="confirmPassword" placeholder="reenter new password" />
                             </label>
                         </>
                     )

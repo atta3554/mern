@@ -10,12 +10,18 @@ const handle = app.getRequestHandler()
 
 app.prepare().then(() => {
     const server = express()
+    
     if(dev) {
         server.use('/api', createProxyMiddleware({
             target: "http://127.0.0.1:8000/api",
             changeOrigin: true
         }))
     }
+
+    server.use('/uploads', createProxyMiddleware({
+        target: "http://127.0.0.1:8000/uploads",
+        changeOrigin: true
+    }))
 
     server.use((req, res)=> {
         return handle(req, res)

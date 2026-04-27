@@ -1,15 +1,11 @@
-import { useState, useContext } from "react"
-import { Context } from "@/context"
+import { useState } from "react"
 import { toast } from "react-toastify"
-import styles from "./register.module.css"
 import { SyncOutlined } from "@ant-design/icons"
 import Link from "next/link"
-import { apiFetch } from "@/context/api"
-import GuestOnly from "@/components/wrappers/GuestOnly"
+import { apiFetch } from "@/lib/api"
+import GuestOnly from "@/components/wrappers/users/GuestOnly"
 
 const register = () => {
-
-    const {onUnauthorized} = useContext(Context);
 
     //prepare register states
     const [name, setName] = useState('')
@@ -37,7 +33,7 @@ const register = () => {
         try {
             //fetch data from backend
             setSpinner(true);
-            let res = await apiFetch(`/api/register`, onUnauthorized, fetchConfig);
+            let res = await apiFetch(`/api/register`, fetchConfig);
             let data = await res.json();
             
             //error if network failed
@@ -71,19 +67,19 @@ const register = () => {
             <div style={{border: "1px solid rgba(0, 0, 0, 0.2)", padding: "20px", borderRadius: "8px", width: '30%', margin: "100px auto"}} className="container">
                 <h1 className="register text-center pt-4">provide us valid info</h1>
                 <form style={{display: "flex", flexDirection: "column", rowGap: "20px"}} onSubmit={handleRegisterFormSubmit}>
-                    <label className={styles.label} htmlFor="name">
-                        <span className={styles.span}>please enter your name</span>
-                        <input value={name} onChange={e => setName(e.target.value)} className={styles.input} type="text" name="name" id="name" placeholder="enter your name" />
+                    <label className="d-flex flex-column" htmlFor="name">
+                        <span className="mb-2" >please enter your name</span>
+                        <input value={name} onChange={e => setName(e.target.value)} type="text" name="name" id="name" placeholder="enter your name" autoComplete="name" />
                     </label>
 
-                    <label className={styles.label} htmlFor="email">
-                        <span className={styles.span}>please enter your email</span>
-                        <input value={email} onChange={e => setEmail(e.target.value)} className={styles.input} type="email" name="email" id="email" placeholder="enter your email" />
+                    <label className="d-flex flex-column" htmlFor="email">
+                        <span className="mb-2" >please enter your email</span>
+                        <input value={email} onChange={e => setEmail(e.target.value)} type="email" name="email" id="email" placeholder="enter your email" autoComplete="email" />
                     </label>
 
-                    <label className={styles.label} htmlFor="password">
-                        <span className={styles.span}>please enter your password</span>
-                        <input value={password} onChange={e => setPassword(e.target.value)} className={styles.input} type="password" name="password" id="password" placeholder="enter your password" />
+                    <label className="d-flex flex-column" htmlFor="password">
+                        <span className="mb-2" >please enter your password</span>
+                        <input value={password} onChange={e => setPassword(e.target.value)} type="password" name="password" id="password" placeholder="enter your password" autoComplete="new-password" />
                     </label>
 
                     <button disabled={!name || !email || !password || spinner} type="submit" className="btn btn-block btn-primary p-2">

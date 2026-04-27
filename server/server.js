@@ -9,6 +9,7 @@ import csurf from "csurf";
 import path from "path";
 import mongoose from "mongoose";
 import { log } from "console";
+
 dotenv.config();
 
 // run app
@@ -23,9 +24,11 @@ mongoose.connect(process.env.MONGODB).then(log('db connected')).catch(err=> log(
 // config middlewares
 app.use( cors({ origin: "http://127.0.0.1:3000" }) );
 app.use(express.json());
+app.use(express.urlencoded( { extended: true } ));
 app.use(cookieParser());
 app.use(csrfProtection);
 app.use(morgan("dev"));
+app.use('/uploads', express.static(path.join(process.cwd(), process.env.UPLOAD_DIR)))
 
 const __filePath = fileURLToPath(import.meta.url);
 const __dirPath = path.dirname(__filePath);

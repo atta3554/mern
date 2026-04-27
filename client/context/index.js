@@ -1,5 +1,5 @@
 import { useReducer, createContext, useEffect, useState } from "react";
-import { apiFetch, fetchCsrfToken } from "./api";
+import { apiFetch, fetchCsrfToken } from "../lib/api";
 import { useRouter } from 'next/router'
 import { toast } from "react-toastify";
 
@@ -25,26 +25,19 @@ const Provider = ({children}) => {
     const [token, setToken] = useState('');
     const router = useRouter();
 
-    const onUnAuthorized = () => {
-        localStorage.removeItem('user');
-        dispatch({type: "LOGOUT"});
-    }
-
     useEffect(() => {
         (async () => {
             try {
-                const res = await apiFetch('/api/current-user', onUnAuthorized);
-                if(res?.ok) {
-                    const user = await res.json();
-                    if(user) {                        
-                        localStorage.setItem("user", JSON.stringify(user));
-                        dispatch({type: "SET_USER", payload: {user, authReady: true}});
-                    } else {
-                        onUnAuthorized()
-                    }
+                const res = await apiFetch('/api/current-user');
+                const {ok, user} = await res.json();
+                
+                if(!res.ok || !ok) {
+                    onUnAuthorized()
                 } else {
-                    onUnAuthorized();
+                    localStorage.setItem("user", JSON.stringify(user));
+                    dispatch({type: "SET_USER", payload: {user, authReady: true}});
                 }
+                
             } catch {
                 dispatch({type: "LOGOUT"});
             }
@@ -61,7 +54,7 @@ const Provider = ({children}) => {
         })();
     },[]);
 
-    return <Context.Provider value={{state, dispatch, token, onUnAuthorized}} >{children}</Context.Provider>
+    return <Context.Provider value={{state, dispatch, token}} >{children}</Context.Provider>
 }
 
 export {Context, Provider}

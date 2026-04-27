@@ -4,15 +4,18 @@ import "../public/css/styles.css"
 import "react-toastify/dist/ReactToastify.css"
 import {Provider} from "../context"
 import { ToastContainer } from "react-toastify"
+import { ConfigProvider } from "antd"
 import Header from "../components/Header"
 
 function MyApp({Component, pageProps}) {
 
     return (
         <Provider> 
-            <Header />
-            <Component {... pageProps} />
-            <ToastContainer />
+            <ConfigProvider theme={{token: {itemSelectedColor: '#0d6efd'}}} >
+                <Header />
+                <Component {... pageProps} />
+                <ToastContainer />
+            </ConfigProvider>
         </Provider>
     )
     

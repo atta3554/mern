@@ -1,12 +1,12 @@
 import { Menu } from "antd"
-import { HomeOutlined, UserAddOutlined, LoginOutlined, LogoutOutlined, CoffeeOutlined, QuestionCircleOutlined, PlusCircleOutlined } from "@ant-design/icons"
+import { HomeOutlined, UserAddOutlined, LoginOutlined, LogoutOutlined, CoffeeOutlined, QuestionCircleOutlined, PlusCircleOutlined, FormOutlined } from "@ant-design/icons"
 import Link from "next/link"
 import { useRouter } from "next/router"
 import { Context } from "@/context"
 import { useContext } from "react"
 import { toast } from "react-toastify"
 import styles from "./header.module.css"
-import { apiFetch } from "@/context/api"
+import { apiFetch } from "@/lib/api"
 
 const Header = () => {
 
@@ -32,7 +32,7 @@ const Header = () => {
     const logout = async () => {
         try {
             //send request and parse response
-            let res = await apiFetch('/api/logout', onUnAuthorized, fetchConfig);
+            let res = await apiFetch('/api/logout', fetchConfig);
             let data = await res.json();
 
             //check network response
@@ -111,7 +111,12 @@ const Header = () => {
                     label: <Link href="/dashboard">Dashboard</Link>,
                     key: '/dashboard',
                     icon: <CoffeeOutlined />,
-                }
+                },
+                (user?.role.includes("admin")) && {
+                    label: <Link href="/admin">admin area</Link>,
+                    key: '/admin',
+                    icon: <FormOutlined />
+                },
             ]
         }
     ].filter(Boolean);

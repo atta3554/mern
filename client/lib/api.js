@@ -54,7 +54,12 @@ function doFetch(path, options = {}) {
     });
 }
 
-export async function apiFetch(path, onUnAuthorized, options={}) {
+function onUnAuthorized () {
+    localStorage.removeItem('user');
+    dispatch({type: "LOGOUT"});
+}
+
+export async function apiFetch(path, options={}) {
     let res = await doFetch(path, options);
     
     if(res.status === 403 && needCsrf(options.method)) {
@@ -63,7 +68,7 @@ export async function apiFetch(path, onUnAuthorized, options={}) {
         return res;
     }
 
-    if(res.status === 401 && typeof onUnAuthorized === 'function') {
+    if(res.status === 401) {
         onUnAuthorized();
     }
 
