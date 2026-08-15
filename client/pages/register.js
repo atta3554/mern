@@ -2,32 +2,32 @@ import { useState } from "react"
 import { toast } from "react-toastify"
 import { SyncOutlined } from "@ant-design/icons"
 import Link from "next/link"
+import { useRouter } from "next/router"
 import { apiFetch } from "@/lib/api"
 import GuestOnly from "@/components/wrappers/users/GuestOnly"
 
-const register = () => {
+const Register = () => {
+
+    const router = useRouter();
 
     //prepare register states
     const [name, setName] = useState('')
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [spinner, setSpinner] = useState(false);
-    
+
     //handle user registeration
     const handleRegisterFormSubmit = async e => {
         e.preventDefault()
-        
+
         //set fetch config option
         let fetchConfig = {
             method: "POST",
             body: JSON.stringify({
                 name,
-                email, 
+                email,
                 password
-            }),
-            headers: {
-                "Content-type": "application/json"
-            }
+            })
         }
 
         try {
@@ -35,30 +35,25 @@ const register = () => {
             setSpinner(true);
             let res = await apiFetch(`/api/register`, fetchConfig);
             let data = await res.json();
-            
-            //error if network failed
-            if(!res.ok) {
-                throw new Error('an error occured');
+
+            //show the validation message the server sent rather than a generic one
+            if(!res.ok || !data.ok) {
+                throw new Error(data.message || 'an error occured');
             }
 
-            //log in if success
-            if(data.ok === true) {
-                setSpinner(false);
-                toast.success('wow! you registered successfully', { position: "top-left" } );
-                setEmail("");
-                setName("");
-                setPassword("");
-            }
+            toast.success(data.message, { position: "top-left" } );
+            setEmail("");
+            setName("");
+            setPassword("");
 
-            //error with server message
-            else {
-                throw new Error(data.message);
-            }
+            //registration does not sign you in, so send the user to the login form
+            router.push('/login');
 
         } catch(err) {
             //show error message
-            setSpinner(false);
             toast.error(err.message, {position: "top-left"});
+        } finally {
+            setSpinner(false);
         }
     }
 
@@ -92,4 +87,4 @@ const register = () => {
     )
 }
 
-export default register;
+export default Register;

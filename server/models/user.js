@@ -2,6 +2,8 @@ import mongoose, { Schema } from "mongoose";
 import locationSchema from "./schemas/location.js";
 import Category from "./category.js";
 
+export const USER_ROLES = ["Requester", "Provider", "Admin"];
+
 const providerSchema = new Schema({
     businessLocation: {type: locationSchema, default: undefined},
     businessCategories: [{type: Schema.Types.ObjectId, ref: "Category"}],
@@ -22,28 +24,28 @@ const userSchema = new Schema({
         type: String,
         required: true,
         trim: true,
+        lowercase: true,
         unique: true
     },
     phoneNumber: {
         type: String,
         trim: true,
-        unique: true,
-        default: ''
+        default: undefined
     },
     password: {
         type: String,
         required: true,
-        min: 6,
-        max: 64
+        // never comes back from a query unless explicitly asked for with .select("+password")
+        select: false
     },
     avatar: {
         type: String,
-        default: "/avatar.png"
+        default: "/images/avatar.webp"
     },
     role: {
         type: [String],
         default: ["Requester"],
-        enum: ["Requester", "Provider", "Admin"]
+        enum: USER_ROLES
     },
     requesterProfile: {
         location: {type: locationSchema, default: undefined}
@@ -54,17 +56,36 @@ const userSchema = new Schema({
     },
     passwordResetCode: {
         type: String,
-        default: ''
+        default: '',
+        select: false
+    },
+    passwordResetExpires: {
+        type: Date,
+        default: undefined,
+        select: false
+    },
+    passwordResetAttempts: {
+        type: Number,
+        default: 0,
+        select: false
+    },
+    passwordChangedAt: {
+        type: Date,
+        default: undefined,
+        select: false
     }
 },
 { timestamps: true }
 )
 
-userSchema.pre("save", async function (next) {
+// sparse so the many users without a phone number do not collide on ""/undefined
+userSchema.index({phoneNumber: 1}, {unique: true, sparse: true});
+
+userSchema.pre("save", async function () {
   if (!this.providerProfile) return;
 
   const cats = this.providerProfile.businessCategories || [];
-  
+
   // remove cache if don't have category
   if (cats.length === 0) {
     this.providerProfile.businessCategoryAncestors = [];

@@ -3,27 +3,26 @@ import { Spin } from "antd";
 import { useRouter } from "next/router";
 import { useContext, useEffect } from "react";
 
-export default function AdminOnly({children}) {
+export default function AdminOnly({children, redirectTo = "/"}) {
 
     const {state: { user, authReady } } = useContext(Context)
 
     const router = useRouter()
 
-    useEffect(() => {
-        if( authReady && !user) {
-            router.replace('/');
-        } else if (authReady && user && !user.role.includes('admin')) {
-            router.replace('/');
-        }
-    }, [user, authReady, router])
+    // the role enum on the server stores "Admin", the casing has to match exactly
+    const isAdmin = user?.role?.includes("Admin");
 
+    useEffect(() => {
+        if(authReady && !isAdmin) {
+            router.replace(redirectTo);
+        }
+    }, [isAdmin, authReady, router, redirectTo])
+
+    //show spin untill auth is ready
     if(!authReady) return <Spin fullscreen />
 
-    if(!user) return <Spin fullscreen />
-
-    if(!user.role.includes('admin')) return <Spin fullscreen />
-
-    console.log(user)
+    //show spin while the redirect above is being performed
+    if(!isAdmin) return <Spin fullscreen />
 
     return <>{children}</>
 }

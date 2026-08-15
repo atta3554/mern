@@ -11,8 +11,8 @@ import { apiFetch } from "@/lib/api"
 const Header = () => {
 
     //accessing global context state
-    const {state: {user, authReady} , dispatch, onUnAuthorized} = useContext(Context)
-    
+    const {state: {user, authReady} , dispatch} = useContext(Context)
+
     //prepare router for redirect
     const router = useRouter()
 
@@ -22,10 +22,7 @@ const Header = () => {
 
     //configure fetch options
     let fetchConfig = {
-        method: "POST",
-        headers: {
-            "Content-type": "application/json"
-        }
+        method: "POST"
     }
 
     //main logout logic
@@ -35,34 +32,23 @@ const Header = () => {
             let res = await apiFetch('/api/logout', fetchConfig);
             let data = await res.json();
 
-            //check network response
-            if(!res.ok) {
-                throw new Error('network error');
-            }
-
             //check server response
-            if(data.ok) {
-                
-                //update global context
-                dispatch({type: "LOGOUT"});
-
-                //remove user data from local storage
-                localStorage.removeItem("user");
-
-                //show logout message
-                toast.info('you have logged out successfully');
-
-                //redirect to home
-                router.push('/login');
+            if(!res.ok || !data.ok) {
+                throw new Error(data.message || 'network error');
             }
 
-            else {
-                throw new Error(data.message);
-            }
-            
+            //update global context
+            dispatch({type: "LOGOUT"});
+
+            //show logout message
+            toast.info('you have logged out successfully');
+
+            //redirect to login
+            router.push('/login');
+
         } catch (err) {
             console.log(err);
-            toast.error('ann error occured');
+            toast.error('an error occured');
         }
     }
 
@@ -83,7 +69,7 @@ const Header = () => {
             key: "/dashboard/submit-request",
             icon: <PlusCircleOutlined />
         }
-    ]
+    ].filter(Boolean)
 
     //auth menu items
     const authMenuItems = [
@@ -112,19 +98,20 @@ const Header = () => {
                     key: '/dashboard',
                     icon: <CoffeeOutlined />,
                 },
-                (user?.role.includes("admin")) && {
+                // the role enum on the server stores "Admin"
+                (user?.role?.includes("Admin")) && {
                     label: <Link href="/admin">admin area</Link>,
                     key: '/admin',
                     icon: <FormOutlined />
                 },
-            ]
+            ].filter(Boolean)
         }
     ].filter(Boolean);
 
     return (
         <header className="d-flex justify-content-between p-2">
             <Menu className={styles.mainMenu} selectedKeys={[router.pathname]} mode="horizontal" items={mainMenuItems}></Menu>
-            <Menu className={styles.authMenu} selectedKeys={[router.pathname]} onClick={({ key }) => key === 'logout' && logout()} mode="horizontal" items={authMenuItems}></Menu>
+            <Menu disabledOverflow className={styles.authMenu} selectedKeys={[router.pathname]} onClick={({ key }) => key === 'logout' && logout()} mode="horizontal" items={authMenuItems}></Menu>
         </header>
     )
 }

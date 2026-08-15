@@ -1,12 +1,12 @@
 import ProtectedDashboardLayout from "@/components/wrappers/users/ProtectedDashboardLayout"
 
-const Dashbaord = () => {
+const Dashboard = () => {
 
     return (
         <ProtectedDashboardLayout>
-            <h1>wellcome to dashboard</h1>
+            <h1>welcome to dashboard</h1>
         </ProtectedDashboardLayout>
     )
 }
 
-export default Dashbaord
+export default Dashboard

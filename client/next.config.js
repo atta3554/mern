@@ -1,22 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  images: {
-    remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "localhost",
-        port: "8000",
-        pathname: "/uploads/**",
-      },
-      {
-        protocol: "http",
-        hostname: "127.0.0.1",
-        port: "8000",
-        pathname: "/uploads/**",
-      }
-    ],
-    dangerouslyAllowLocalIP: true
-  },
+  /*
+   * Uploaded images are referenced by relative urls (/uploads/...) and reach the backend
+   * through the proxy in server.js, so they are same-origin and need no remotePatterns.
+   */
 };
 
 export default nextConfig

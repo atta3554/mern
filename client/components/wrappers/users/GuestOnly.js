@@ -5,7 +5,7 @@ import { Spin } from "antd";
 
 
 const GuestOnly = ({children, redirectTo="/dashboard"}) => {
-    
+
     //prepare global context
     const {state: { user, authReady } } = useContext(Context);
 
@@ -17,7 +17,7 @@ const GuestOnly = ({children, redirectTo="/dashboard"}) => {
         if( authReady && user) {
             router.replace(redirectTo);
         }
-    }, [user, authReady, router])
+    }, [user, authReady, router, redirectTo])
 
     //show spin untill auth is ready
     if(!authReady) {

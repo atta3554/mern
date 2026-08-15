@@ -1,13 +1,13 @@
 import ProtectedDashboardLayout from "@/components/wrappers/users/ProtectedDashboardLayout";
 import { Context } from "@/context";
-import { handleFetch } from "@/lib/request";
+import { handleFetch } from "@/lib/api";
 import { apiFetch } from "@/lib/api";
 import { SyncOutlined } from "@ant-design/icons";
 import { useContext, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useRouter } from "next/router";
 
-const editProfile = () => {
+const EditProfile = () => {
 
     //get user data from Context
     const {state: {user, authReady}, dispatch} = useContext(Context);
@@ -16,10 +16,11 @@ const editProfile = () => {
     //show popup if location=false param is set
     const router = useRouter();
     const popupRef = useRef(false)
-    
+
     //prepare demanded states
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
+    const [currentPassword, setCurrentPassword] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [userCountry, setUserCountry] = useState(location?.country || '');
@@ -42,114 +43,76 @@ const editProfile = () => {
             popupRef.current = true;
             toast.info('add your location in order to add request');
         }
-    })
+    }, [router.isReady, router.query])
 
-    // fill name and email from context
-    useEffect(()=> {
-        (async () => {
-            if(user) {
-                setName(user.name)
-                setEmail(user.email)
-                setPhone(user.phoneNumber)
+    /*
+     * Fill the form from the context user. React's documented way to resync state with a
+     * changed value is to compare against the previous one during render — in an effect this
+     * would render the whole form a second time every time the session refreshes.
+     */
+    const [seededUser, setSeededUser] = useState(null);
 
-                if(location) {
-                    const { country, province, city } = location
-                    setUserCountry(country)
-                    setUserProvince(province)
-                    setUserCity(city)
-                }
-            }
-        })()
-    }, [user])
+    if(user && user !== seededUser) {
+        setSeededUser(user);
+        setName(user.name);
+        setEmail(user.email);
+        setPhone(user.phoneNumber || '');
+        setUserCountry(location?.country || '');
+        setUserProvince(location?.province || '');
+        setUserCity(location?.city || '');
+    }
 
     //fetch existing countries
     useEffect(()=> {
         handleFetch(setExistingCountriesSpinner, '/api/get-countries', {}, globalFetchFailureMsg, setExistingCountries)
     }, [])
 
-    //update province lists based on country list
-    useEffect(()=> {
-        
-        if(!existingCountries.length) {
-            setExistingProvinces([]);
-            setExistingCities([]);
-            return
-        }
-
-        if(userCountry) {
-            const fetchConfig = {
-                method: "POST",
-                body: JSON.stringify({country: userCountry})
-            }
-            handleFetch(setExistingProvincesSpinner, '/api/get-provinces', fetchConfig, globalFetchFailureMsg, setExistingProvinces)
-        }
-
-    }, [existingCountries])
-
-    //update city list based on province list
-    useEffect(()=> {
-        
-        if(!existingProvinces.length) {
-            setExistingCities([]);
-            return;
-        }
-
-        if(userProvince) {
-            const cityFetchConfig = {
-                method: "POST",
-                body: JSON.stringify({province: userProvince})
-            }
-            handleFetch(setExistingCitiesSpinner, '/api/get-cities', cityFetchConfig, globalFetchFailureMsg, setExistingCities)
-        }
-
-    }, [existingProvinces])
-
     //fetch existing provinces based on user selected country
     useEffect( () => {
 
-        if(!userCountry) {
-            setUserProvince('');
-            setUserCity('');
-            setExistingProvinces([]);
-            setExistingCities([]);
-            return
-        }
-                
-        const fetchConfig = {
-            method: "POST",
-            body: JSON.stringify({country: userCountry})
-        }
+        if(!userCountry) return
 
-        handleFetch(setExistingProvincesSpinner, '/api/get-provinces', fetchConfig, globalFetchFailureMsg, setExistingProvinces)
+        handleFetch(setExistingProvincesSpinner, `/api/get-provinces/${userCountry}`, {}, globalFetchFailureMsg, setExistingProvinces)
 
     }, [userCountry]);
 
     //fetch existing cities based on user selected province
     useEffect(()=> {
 
-        if(!userProvince) {
-            setUserCity('');
-            setExistingCities([]);
-            return;
-        }
+        if(!userProvince) return
 
-        const fetchConfig = {
-            method: "POST",
-            body: JSON.stringify({province: userProvince})
-        }
+        handleFetch(setExistingCitiesSpinner, `/api/get-cities/${userProvince}`, {}, globalFetchFailureMsg, setExistingCities)
 
-        handleFetch(setExistingCitiesSpinner, '/api/get-cities', fetchConfig, globalFetchFailureMsg, setExistingCities)
-        
     }, [userProvince])
+
+    /*
+     * The dependent fields are cleared by the action that invalidates them rather than by an
+     * effect watching the value — an effect would setState synchronously on every change.
+     */
+    const handleCountryChange = value => {
+        setUserCountry(value);
+        setUserProvince('');
+        setUserCity('');
+        setExistingProvinces([]);
+        setExistingCities([]);
+    }
+
+    const handleProvinceChange = value => {
+        setUserProvince(value);
+        setUserCity('');
+        setExistingCities([]);
+    }
 
     //send profile datas to backend
     const handleProfileData = async e => {
-        setBtnSpinner(true);
         e.preventDefault();
+        setBtnSpinner(true);
+
         try {
+            // the account being edited is taken from the auth cookie, not from anything sent here
             let fetchConfig = {
                 method: "POST",
-                body: JSON.stringify({_id: user._id, name, email, password, confirmPassword, phone, userCountry, userProvince, userCity})
+                body: JSON.stringify({name, email, currentPassword, password, confirmPassword, phone, userCountry, userProvince, userCity})
             }
 
             const res = await apiFetch('/api/edit-profile', fetchConfig);
@@ -159,15 +122,19 @@ const editProfile = () => {
                 toast.error(message)
             } else {
                 toast.success(message);
-                dispatch({type: "SET_USER", payload: {user: updatedUser, authReady}})
+                dispatch({type: "SET_USER", payload: {user: updatedUser}})
+                setCurrentPassword('');
+                setPassword('');
+                setConfirmPassword('');
             }
         } catch(err) {
             console.log(err);
             toast.error(globalFetchFailureMsg);
+        } finally {
+            setBtnSpinner(false);
         }
-        setBtnSpinner(false);
     }
-    
+
     return (
         <ProtectedDashboardLayout>
             <div style={{border: "1px solid rgba(0, 0, 0, 0.2)", padding: "20px", borderRadius: "8px", width: '90%', margin: "100px auto"}} className="container">
@@ -187,7 +154,14 @@ const editProfile = () => {
 
                     <div className="d-flex column-gap-4 mt-2">
                         <div className="d-flex w-50 flex-column row-gap-1">
-                            <label htmlFor="password">password</label>
+                            <label htmlFor="currentPassword">current password <small className="text-muted">(only to change your password)</small></label>
+                            <input type="password" value={currentPassword} autoComplete="current-password" onChange={e=> setCurrentPassword(e.target.value)} name="currentPassword" id="currentPassword" />
+                        </div>
+                    </div>
+
+                    <div className="d-flex column-gap-4 mt-2">
+                        <div className="d-flex w-50 flex-column row-gap-1">
+                            <label htmlFor="password">new password</label>
                             <input type="password" value={password} autoComplete="new-password" onChange={e=> setPassword(e.target.value)} name="password" id="password" />
                         </div>
                         <div className="d-flex w-50 flex-column row-gap-1">
@@ -198,14 +172,14 @@ const editProfile = () => {
 
                     <div className="d-flex column-gap-4 mt-2">
                         <div className="d-flex w-50 flex-column row-gap-1">
-                            <label htmlFor="address">enter your phone number</label>
-                            <input type="text" value={phone} autoComplete="phone" onChange={e=> setPhone(e.target.value)} name="address" id="address" />
+                            <label htmlFor="phone">enter your phone number</label>
+                            <input type="text" value={phone} autoComplete="tel" onChange={e=> setPhone(e.target.value)} name="phone" id="phone" />
                         </div>
                         <div className="d-flex w-50 flex-column row-gap-1">
                             <label htmlFor="country">select your Country</label>
                                 {existingCountriesSpinner && !existingCountries.length && <SyncOutlined spin />}
-                                {existingCountries.length && !existingCountriesSpinner && (
-                                    <select className="p-2" value={userCountry} onChange={e=> setUserCountry(e.target.value)} name="country" id="country">
+                                {existingCountries.length > 0 && !existingCountriesSpinner && (
+                                    <select className="p-2" value={userCountry} onChange={e=> handleCountryChange(e.target.value)} name="country" id="country">
                                         <option value="">select your country</option>
                                         {existingCountries.map(country => <option key={country._id} value={country._id}>{country.name}</option>)}
                                     </select>
@@ -218,32 +192,26 @@ const editProfile = () => {
                             <label htmlFor="province">select your Province</label>
                                 {existingProvincesSpinner && userCountry && !existingProvinces.length && <SyncOutlined spin />}
                                 {!existingProvincesSpinner && (
-                                    <select className="p-2" value={userProvince} onChange={e=> setUserProvince(e.target.value)} name="province" id="province" autoComplete="address-level1">
+                                    <select className="p-2" value={userProvince} onChange={e=> handleProvinceChange(e.target.value)} name="province" id="province" autoComplete="address-level1">
                                         {!userCountry && <option value="">select your country first</option>}
-                                        {userCountry && !existingProvinces.length && <option value="">select your province</option>}
-                                        {userCountry && existingProvinces.length && (
-                                            <>
-                                            <option value="">select your province</option>
-                                            {existingProvinces.map(province => <option key={province._id} value={province._id}>{province.name}</option>)}
-                                            </>
-                                        )} 
+                                        {userCountry && <option value="">select your province</option>}
+                                        {userCountry && existingProvinces.length > 0 &&
+                                            existingProvinces.map(province => <option key={province._id} value={province._id}>{province.name}</option>)
+                                        }
                                     </select>
                                 )}
                         </div>
                         <div className="d-flex w-50 flex-column row-gap-1">
                             <label htmlFor="city">select your City</label>
-                                {existingCitiesSpinner && userProvince && !existingCities && <SyncOutlined spin />}
+                                {existingCitiesSpinner && userProvince && !existingCities.length && <SyncOutlined spin />}
                                 {!existingCitiesSpinner && (
                                     <select className="p-2" value={userCity} onChange={e=> setUserCity(e.target.value)} name="city" id="city" autoComplete="address-level2">
                                         {!userCountry && <option value="">select your country first</option>}
                                         {userCountry && !userProvince && <option value="">select your province first</option>}
-                                        {userCountry && userProvince && !existingCities.length && <option value="">select your city</option>}
-                                        {userCountry && userProvince && existingCities.length && (
-                                            <>
-                                            <option value="">select your city</option>
-                                            {existingCities.map(city => <option key={city._id} value={city._id}>{city.name}</option>)}
-                                            </>
-                                        )} 
+                                        {userCountry && userProvince && <option value="">select your city</option>}
+                                        {userCountry && userProvince && existingCities.length > 0 &&
+                                            existingCities.map(city => <option key={city._id} value={city._id}>{city.name}</option>)
+                                        }
                                     </select>
                                 )}
                         </div>
@@ -260,4 +228,4 @@ const editProfile = () => {
     )
 }
 
-export default editProfile
+export default EditProfile

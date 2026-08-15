@@ -10,6 +10,7 @@ const providerApplicationSchema = new Schema(
             unique: true
         },
         businessLocation: {type: locationSchema, required: true},
+        businessCategories: [{type: Schema.Types.ObjectId, ref: "Category"}],
         status: {
             type: String,
             enum: ["pending", "approved", "rejected"],

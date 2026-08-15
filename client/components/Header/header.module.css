@@ -3,5 +3,6 @@
 }
 
 .authMenu {
-    width: 13%;
+    width: auto;
+    flex-shrink: 0;
 }

@@ -20,12 +20,12 @@ const Login = () => {
     //handle user login
     const handleLoginFormSubmit = async e => {
         e.preventDefault()
-        
+
         //config login fetch request
         let fetchConfig = {
             method: "POST",
             body: JSON.stringify({
-                email, 
+                email,
                 password,
                 remember
             })
@@ -37,34 +37,27 @@ const Login = () => {
 
             let res = await apiFetch(`/api/login`, fetchConfig);
             let data = await res.json();
-            
-            //send error if request failed
-            if(!res.ok) {
-                throw new Error(data);
+
+            //surface the message the server actually sent
+            if(!res.ok || !data.ok) {
+                throw new Error(data.message || 'an error occured');
             }
 
-            //log in user if credentials are valid 
-            if(data.ok === true) {
-                
-                //show successfull message
-                setSpinner(false);
-                toast.success('wow! you have logged in successfully. you will be redirect in a moment', { position: "top-left" } );
+            //show successfull message
+            toast.success('wow! you have logged in successfully. you will be redirect in a moment', { position: "top-left" } );
 
-                //empty fields
-                setEmail("");
-                setPassword("");
-                setRemember(false);
+            //empty fields
+            setEmail("");
+            setPassword("");
+            setRemember(false);
 
-                //dispatch user data to global context
-                dispatch({type: "SET_USER", payload: {user: data.user}});
-
-                //save in localstorage for consistent data on page refresh
-                localStorage.setItem("user", JSON.stringify(data.user))
-            }
+            //dispatch user data to global context, GuestOnly performs the redirect
+            dispatch({type: "SET_USER", payload: {user: data.user}});
 
         } catch(err) {
-            setSpinner(false);
             toast.error(err.message, {position: "top-left"});
+        } finally {
+            setSpinner(false);
         }
     }
 
@@ -92,7 +85,7 @@ const Login = () => {
                     <button disabled={!email || !password || spinner} type="submit" className="btn btn-block btn-primary p-2">
                         {spinner ? <SyncOutlined spin /> : "submit"}
                     </button>
-                    <p className="text-center mb-0">don't have an account? <strong><Link href="/register">register</Link></strong></p>
+                    <p className="text-center mb-0">don&apos;t have an account? <strong><Link href="/register">register</Link></strong></p>
                     <p className="text-center">forgot your password? <strong><Link href="/forgot-password">reset password</Link></strong></p>
                 </form>
             </div>

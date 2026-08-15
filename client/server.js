@@ -1,35 +1,52 @@
-//optional custom server
+//custom server: it proxies the api and the uploaded files so the browser only ever talks to one origin
 
-import next from "next"
-import express from "express"
-import { createProxyMiddleware } from "http-proxy-middleware"
+import next from "next";
+import express from "express";
+import { createProxyMiddleware } from "http-proxy-middleware";
 
-const dev = process.env.NODE_ENV !== "production";
-const app = next({dev})
-const handle = app.getRequestHandler()
+// `npm start` passes --prod so production does not depend on NODE_ENV being exported by the shell
+const dev =
+  process.env.NODE_ENV !== "production" && !process.argv.includes("--prod");
+const port = parseInt(process.env.PORT || "3000", 10);
+const apiTarget = process.env.API_TARGET || "http://127.0.0.1:8000";
 
-app.prepare().then(() => {
-    const server = express()
-    
-    if(dev) {
-        server.use('/api', createProxyMiddleware({
-            target: "http://127.0.0.1:8000/api",
-            changeOrigin: true
-        }))
-    }
+const app = next({ dev });
+const handle = app.getRequestHandler();
 
-    server.use('/uploads', createProxyMiddleware({
-        target: "http://127.0.0.1:8000/uploads",
-        changeOrigin: true
-    }))
+app
+  .prepare()
+  .then(() => {
+    const server = express();
 
-    server.use((req, res)=> {
-        return handle(req, res)
-    })
+    /*
+     * Both proxies are unconditional. Gating /api behind `dev` used to leave production with
+     * no route to the backend at all, since there are no rewrites in next.config.js.
+     */
+    server.use(
+      "/api",
+      createProxyMiddleware({
+        target: `${apiTarget}/api`,
+        changeOrigin: true,
+        xfwd: true,
+      }),
+    );
 
-    server.listen(3000, err=> {
-        if(err) throw err;
-        console.log('server ready');
-        
-    })
-}).catch(err=> console.log(err))
+    server.use(
+      "/uploads",
+      createProxyMiddleware({
+        target: `${apiTarget}/uploads`,
+        changeOrigin: true,
+        xfwd: true,
+      }),
+    );
+
+    server.use((req, res) => {
+      return handle(req, res);
+    });
+
+    server.listen(port, (err) => {
+      if (err) throw err;
+      console.log(`server ready on http://127.0.0.1:${port}`);
+    });
+  })
+  .catch((err) => console.log(err));

@@ -29,6 +29,7 @@ const requestSchema = new Schema(
         category: {type: Schema.Types.ObjectId, ref: "Category", required: true, index: true},
         
         //quick access
+        acceptedProposal: {type: Schema.Types.ObjectId, ref: "Proposal", default: undefined},
         categoryType: {type: String, enum: ['product', 'service'], required: true, index: true},
         categoryAncestors: [{type: Schema.Types.ObjectId, ref: "Category", index: true}],
         categorySlugPath: {type: String, required: true, index: true}
